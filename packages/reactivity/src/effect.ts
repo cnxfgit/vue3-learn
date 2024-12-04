@@ -1,11 +1,20 @@
 export let activeEffect = undefined;
 
+function cleanupEffect(effect) {
+    const {deps} = effect;
+
+    for (let i = 0; i < deps.length; i++) {
+        deps[i].delete(effect)
+    }
+    effect.deps.length = 0;
+}
+
 class ReactiveEffect {
     public parent = null
     public deps = []
     public active = true
 
-    constructor(public fn) {
+    constructor(public fn, public scheduler) {
     }
 
     run() {
@@ -16,17 +25,29 @@ class ReactiveEffect {
         try {
             this.parent = activeEffect;
             activeEffect = this;
+            cleanupEffect(this);
             return this.fn()
         } finally {
             activeEffect = this.parent;
         }
     }
+
+    stop() {
+        if (this.active) {
+            this.active = false;
+            cleanupEffect(this)
+        }
+    }
 }
 
-export function effect(fn) {
-    const _effect = new ReactiveEffect(fn)
+export function effect(fn, options: any = {}) {
+    const _effect = new ReactiveEffect(fn, options.scheduler)
 
     _effect.run()
+
+    const runner = _effect.run.bind(_effect)
+    runner.effect = _effect
+    return runner
 }
 
 
@@ -56,8 +77,17 @@ export function trigger(target, type, key, value, oldValue) {
     const depsMap = targetMap.get(target);
     if (!depsMap) return
 
-    const effects = depsMap.get(key)
-    effects && effects.forEach(effect => {
-        if (activeEffect !== effect) effect.run()
-    });
+    let effects = depsMap.get(key)
+    if (effects) {
+        effects = new Set(effects);
+        effects.forEach(effect => {
+            if (activeEffect !== effect) {
+                if (effect.scheduler) {
+                    effect.scheduler()
+                } else {
+                    effect.run()
+                }
+            }
+        });
+    }
 }
