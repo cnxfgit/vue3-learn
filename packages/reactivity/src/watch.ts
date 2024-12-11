@@ -23,10 +23,15 @@ export function watch(source, cb) {
     } else {
         return
     }
+    let cleanup
+    const onCleanup = (fn) => {
+        cleanup = fn;
+    }
     let oldValue;
     const job = () => {
+        if (cleanup) cleanup()
         const newValue = effect.run();
-        cb(oldValue, newValue);
+        cb(oldValue, newValue, onCleanup);
         oldValue = newValue;
     }
     const effect = new ReactiveEffect(getter, job);
