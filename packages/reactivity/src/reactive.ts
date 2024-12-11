@@ -4,6 +4,10 @@ import {mutableHandlers, ReactiveFlags} from "./baseHandler";
 
 const reactiveMap = new WeakMap()
 
+export function isReactive(value) {
+    return !!(value && value[ReactiveFlags.IS_REACTIVE])
+}
+
 export function reactive(target) {
     if (!isObject(target)) {
         return
