@@ -65,13 +65,19 @@ export function track(target, type, key) {
     if (!dep) {
         depsMap.set(key, (dep = new Set()))
     }
-    let shouldTrack = !dep.has(activeEffect);
-    if (shouldTrack) {
-        dep.add(activeEffect)
-        activeEffect.deps.push(dep)
-    }
+
+    trackEffects(dep)
 }
 
+export function trackEffects(dep) {
+    if (activeEffect) {
+        let shouldTrack = !dep.has(activeEffect);
+        if (shouldTrack) {
+            dep.add(activeEffect)
+            activeEffect.deps.push(dep)
+        }
+    }
+}
 
 export function trigger(target, type, key, value, oldValue) {
     const depsMap = targetMap.get(target);
@@ -79,15 +85,19 @@ export function trigger(target, type, key, value, oldValue) {
 
     let effects = depsMap.get(key)
     if (effects) {
-        effects = new Set(effects);
-        effects.forEach(effect => {
-            if (activeEffect !== effect) {
-                if (effect.scheduler) {
-                    effect.scheduler()
-                } else {
-                    effect.run()
-                }
-            }
-        });
+        triggerEffects(effects)
     }
+}
+
+export function triggerEffects(effects) {
+    effects = new Set(effects);
+    effects.forEach(effect => {
+        if (activeEffect !== effect) {
+            if (effect.scheduler) {
+                effect.scheduler()
+            } else {
+                effect.run()
+            }
+        }
+    });
 }

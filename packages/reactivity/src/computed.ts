@@ -1,5 +1,5 @@
 import {isFunction} from "@vue/shared";
-import {ReactiveEffect} from "./effect"
+import {ReactiveEffect, track, trackEffects, triggerEffects} from "./effect"
 
 class ComputedRefImpl {
     public effect
@@ -7,14 +7,20 @@ class ComputedRefImpl {
     public __v_isReadonly = true
     public __v_isRef = true
     public _value
+    public dep = new Set()
     constructor(public getter, public setter) {
         this.effect = new ReactiveEffect(getter, () => {
-
+            if (!this._dirty) {
+                this._dirty = true;
+                triggerEffects(this.dep);
+            }
         });
     }
 
     get value() {
+        trackEffects(this.dep);
         if (this._dirty) {
+            this._dirty = false;
             this._value = this.effect.run();
         }
         return this._value
