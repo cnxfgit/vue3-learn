@@ -3,7 +3,7 @@ export const nodeOps = {
         parent.insertBefore(child, anchor)
     },
     remove(child) {
-        const parentNode = child.parent;
+        const parentNode = child.parentNode;
         if (parentNode) {
             parentNode.removeChild(child);
         }
