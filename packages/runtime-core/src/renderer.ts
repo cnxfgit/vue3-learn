@@ -1,5 +1,5 @@
 import {isString, ShapeFlags} from "@vue/shared";
-import {createVnode, Text} from "./vnode";
+import {createVnode, isSameVnode, Text} from "./vnode";
 
 export function createRenderer(renderOptions) {
     let {
@@ -53,27 +53,60 @@ export function createRenderer(renderOptions) {
         }
     }
 
+    const patchProps = (oldProps, newProps, el) => {
+        for (const key in newProps) {
+            hostPatchProp(el, key, oldProps[key], newProps[key]);
+        }
+
+        for (const key in oldProps) {
+            if (newProps[key] == null) {
+                hostPatchProp(el, key, oldProps[key], null);
+            }
+        }
+    }
+
+    const patchChildren = (n1, n2, el) => {
+        const c1 = n1.children;
+        const c2 = n2.children;
+
+
+    }
+
+    const patchElement = (n1, n2) => {
+        const el = n2.el = n1.el;
+        const oldProps = n1.props || {};
+        const newProps = n2.props || {};
+
+        patchProps(oldProps, newProps, el);
+        patchChildren(n1, n2, el);
+    }
+
+    const processElement = (n1, n2, container) => {
+        if (n1 === null) {
+            mountElement(n2, container);
+        } else {
+            patchElement(n1, n2);
+        }
+    }
+
     const patch = (n1, n2, container) => {
         if (n1 === n2) return;
 
+        if (n1 && !isSameVnode(n1, n2)) {
+            unmount(n1);
+            n1 = null;
+        }
+
         const {type, shapeFlag} = n2;
-        if (n1 === null) {
-            switch (type) {
-                case Text:
-                    processText(n1, n2, container);
-                    break
-                default:
-                    if (shapeFlag & ShapeFlags.ELEMENT) {
-                        mountElement(n2, container);
-                    }
-            }
-        } else {
-            const {shapeFlag} = n2;
-            // if (shapeFlag & 1) {
-            //     processElement(n1, n2, container);
-            // } else if (shapeFlag & 4) {
-            //     processText(n1, n2, container);
-            // }
+
+        switch (type) {
+            case Text:
+                processText(n1, n2, container);
+                break
+            default:
+                if (shapeFlag & ShapeFlags.ELEMENT) {
+                    processElement(n1, n2, container);
+                }
         }
     }
 
