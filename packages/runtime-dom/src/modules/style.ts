@@ -1,4 +1,4 @@
-export function patchStyle(el, prevValue, nextValue) {
+export function patchStyle(el, prevValue, nextValue = {}) {
     for (let key in nextValue) {
         el.style[key] = nextValue[key]
     }
