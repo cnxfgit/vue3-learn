@@ -1,5 +1,5 @@
 import {isString, ShapeFlags} from "@vue/shared";
-import {createVnode, isSameVnode, Text} from "./vnode";
+import {createVnode, Fragment, isSameVnode, Text} from "./vnode";
 import {getSequence} from "./sequence";
 
 export function createRenderer(renderOptions) {
@@ -207,6 +207,14 @@ export function createRenderer(renderOptions) {
         }
     }
 
+    const processFragment = (n1, n2, container, anchor) => {
+        if (n1 == null) {
+            mountChildren(n2.children, container);
+        } else {
+            patchChildren(n1, n2, container);
+        }
+    }
+
     const patch = (n1, n2, container, anchor = null) => {
         if (n1 === n2) return;
 
@@ -220,6 +228,9 @@ export function createRenderer(renderOptions) {
         switch (type) {
             case Text:
                 processText(n1, n2, container);
+                break
+            case Fragment:
+                processFragment(n1, n2, container, anchor);
                 break
             default:
                 if (shapeFlag & ShapeFlags.ELEMENT) {
