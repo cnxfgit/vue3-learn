@@ -1,5 +1,6 @@
 import {isString, ShapeFlags} from "@vue/shared";
 import {createVnode, isSameVnode, Text} from "./vnode";
+import {getSequence} from "./sequence";
 
 export function createRenderer(renderOptions) {
     let {
@@ -128,6 +129,7 @@ export function createRenderer(renderOptions) {
 
         const toBePatched = e2 - s2 + 1;
         const newIndexToOldIndexMap = new Array(toBePatched).fill(0);
+
         for (let i = s1; i <= e1; i++) {
             const oldChild = c1[i];
             const newIndex = keyToNewIndexMap.get(oldChild.key);
@@ -139,6 +141,8 @@ export function createRenderer(renderOptions) {
             }
         }
 
+        const increment = getSequence(newIndexToOldIndexMap)
+        let j = increment.length - 1;
         for (let i = toBePatched - 1; i >= 0; i--) {
             let index = i + s2;
             let current = c2[index];
@@ -146,7 +150,11 @@ export function createRenderer(renderOptions) {
             if (newIndexToOldIndexMap[i] === 0) {
                 patch(null, current, el, anchor);
             } else {
-                hostInsert(current.el, el, anchor);
+                if (i !== increment[j]) {
+                    hostInsert(current.el, el, anchor);
+                } else {
+                    j--;
+                }
             }
         }
     }
