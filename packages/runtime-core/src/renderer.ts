@@ -1,6 +1,8 @@
 import {isString, ShapeFlags} from "@vue/shared";
 import {createVnode, Fragment, isSameVnode, Text} from "./vnode";
 import {getSequence} from "./sequence";
+import {reactive, ReactiveEffect} from "@vue/reactivity";
+import {queueJob} from "./scheduler";
 
 export function createRenderer(renderOptions) {
     let {
@@ -215,6 +217,47 @@ export function createRenderer(renderOptions) {
         }
     }
 
+    const mountComponent = (vnode, container, anchor) => {
+        let {data=() => ({}), render} = vnode.type;
+        const state = reactive(data());
+        let instance = {
+            state,
+            vnode,
+            subTree: null,
+            isMounted: false,
+            update: null,
+        }
+
+        const componentUpdateFn = () => {
+            if (!instance.isMounted) {
+                const subTree = render.call(state);
+                patch(null, subTree, container, anchor);
+                instance.subTree = subTree;
+                instance.isMounted = true;
+            } else {
+                const subTree = render.call(state);
+                patch(instance.subTree, subTree, container, anchor);
+                instance.subTree = subTree;
+            }
+        }
+
+        const effect = new ReactiveEffect(componentUpdateFn, () => queueJob(instance.update));
+        let update = instance.update = effect.run.bind(effect);
+        update();
+    }
+
+    const patchComponent = (n1, n2) => {
+
+    }
+
+    const processComponent = (n1, n2, container, anchor) => {
+        if (n1 === null) {
+            mountComponent(n2, container, anchor);
+        } else {
+            patchComponent(n1, n2);
+        }
+    }
+
     const patch = (n1, n2, container, anchor = null) => {
         if (n1 === n2) return;
 
@@ -235,6 +278,8 @@ export function createRenderer(renderOptions) {
             default:
                 if (shapeFlag & ShapeFlags.ELEMENT) {
                     processElement(n1, n2, container, anchor);
+                } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+                    processComponent(n1, n2, container, anchor);
                 }
         }
     }

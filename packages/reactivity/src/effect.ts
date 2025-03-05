@@ -14,7 +14,7 @@ export class ReactiveEffect {
     public deps = []
     public active = true
 
-    constructor(public fn, public scheduler) {
+    constructor(public fn, public scheduler?) {
     }
 
     run() {
