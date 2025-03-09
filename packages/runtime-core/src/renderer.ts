@@ -1,8 +1,9 @@
 import {isString, ShapeFlags} from "@vue/shared";
 import {createVnode, Fragment, isSameVnode, Text} from "./vnode";
 import {getSequence} from "./sequence";
-import {reactive, ReactiveEffect} from "@vue/reactivity";
+import {ReactiveEffect} from "@vue/reactivity";
 import {queueJob} from "./scheduler";
+import {createComponentInstance, setupComponent} from "./component";
 
 export function createRenderer(renderOptions) {
     let {
@@ -218,24 +219,23 @@ export function createRenderer(renderOptions) {
     }
 
     const mountComponent = (vnode, container, anchor) => {
-        let {data=() => ({}), render} = vnode.type;
-        const state = reactive(data());
-        let instance = {
-            state,
-            vnode,
-            subTree: null,
-            isMounted: false,
-            update: null,
-        }
+        let instance = vnode.component = createComponentInstance(vnode);
 
+        setupComponent(instance);
+
+        setupRenderEffect(instance, container, anchor);
+    }
+
+    const setupRenderEffect = (instance, container, anchor) => {
+        const {render} = instance;
         const componentUpdateFn = () => {
             if (!instance.isMounted) {
-                const subTree = render.call(state);
+                const subTree = render.call(instance.proxy);
                 patch(null, subTree, container, anchor);
                 instance.subTree = subTree;
                 instance.isMounted = true;
             } else {
-                const subTree = render.call(state);
+                const subTree = render.call(instance.proxy);
                 patch(instance.subTree, subTree, container, anchor);
                 instance.subTree = subTree;
             }
