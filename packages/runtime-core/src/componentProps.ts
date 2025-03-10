@@ -22,7 +22,7 @@ export function initProps(instance, rawProps) {
     instance.attrs = attrs;
 }
 
-const hasPropsChanged = (prevProps, nextProps) => {
+export const hasPropsChanged = (prevProps, nextProps) => {
     const nextKeys = Object.keys(nextProps);
     if (nextKeys.length !== Object.keys(prevProps).length) {
         return true;
@@ -38,15 +38,15 @@ const hasPropsChanged = (prevProps, nextProps) => {
     return false;
 }
 
-export function updateProps(instance, prevProps, nextProps) {
+export function updateProps(prevProps, nextProps) {
     if (hasPropsChanged(prevProps, nextProps)) {
         for (let key in nextProps) {
-            instance.props[key] = nextProps[key];
+            prevProps[key] = nextProps[key];
         }
 
-        for (const key in instance.props) {
+        for (const key in prevProps) {
             if (!hasOwn(nextProps, key)) {
-                delete instance.props[key];
+                delete prevProps[key];
             }
         }
     }
