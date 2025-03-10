@@ -1,9 +1,10 @@
-import {isString, ShapeFlags} from "@vue/shared";
+import {isNumber, isString, ShapeFlags} from "@vue/shared";
 import {createVnode, Fragment, isSameVnode, Text} from "./vnode";
 import {getSequence} from "./sequence";
 import {ReactiveEffect} from "@vue/reactivity";
 import {queueJob} from "./scheduler";
 import {createComponentInstance, setupComponent} from "./component";
+import {updateProps} from "./componentProps";
 
 export function createRenderer(renderOptions) {
     let {
@@ -19,7 +20,7 @@ export function createRenderer(renderOptions) {
     } = renderOptions;
 
     const normalize = (children, i) => {
-        if (isString(children[i])) {
+        if (isString(children[i]) || isNumber(children[i])) {
             let vnode = createVnode(Text, null, children[i]);
             children[i] = vnode;
         }
@@ -246,15 +247,19 @@ export function createRenderer(renderOptions) {
         update();
     }
 
-    const patchComponent = (n1, n2) => {
+    const updateComponent = (n1, n2) => {
+        const instance = n2.component = n1.component;
+        const {props: prevProps} = n1;
+        const {props: nextProps} = n2;
 
+        updateProps(instance, prevProps, nextProps);
     }
 
     const processComponent = (n1, n2, container, anchor) => {
         if (n1 === null) {
             mountComponent(n2, container, anchor);
         } else {
-            patchComponent(n1, n2);
+            updateComponent(n1, n2);
         }
     }
 
