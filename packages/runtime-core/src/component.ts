@@ -1,4 +1,4 @@
-import {hasOwn, isFunction} from "@vue/shared";
+import {hasOwn, isFunction, isObject, ShapeFlags} from "@vue/shared";
 import {initProps} from "./componentProps";
 import {reactive} from "@vue/reactivity";
 
@@ -14,6 +14,8 @@ export function createComponentInstance(vnode) {
         attrs: {},
         proxy: null,
         render: null,
+        setupState: {},
+        slots: {},
     }
 
     return instance;
@@ -28,9 +30,11 @@ const publicPropertiesMap = {
 
 const publicInstanceProxy = {
     get(target, key) {
-        const {props, data} = target;
+        const {props, data, setupState} = target;
         if (data && hasOwn(data, key)) {
             return data[key];
+        } else if (hasOwn(setupState, key)) {
+            return setupState[key];
         } else if (props && hasOwn(props, key)) {
             return props[key];
         }
@@ -41,10 +45,12 @@ const publicInstanceProxy = {
         }
     },
     set(target, key, value) {
-        const {props, data} = target;
+        const {props, data, setupState} = target;
         if (data && hasOwn(data, key)) {
             data[key] = value;
             return true;
+        } else if (hasOwn(setupState, key)) {
+            setupState[key] = value;
         } else if (props && hasOwn(props, key)) {
             console.warn(`attempting to mutate prop ` + (key as string));
             return false;
@@ -53,11 +59,17 @@ const publicInstanceProxy = {
     }
 }
 
+function initSlots(instance, children) {
+    if (instance.vnode.shapeFlag & ShapeFlags.SLOTS_CHILDREN) {
+        instance.slots = children;
+    }
+}
 
 export function setupComponent(instance) {
-    let {props, type} = instance.vnode
+    let {props, type, children} = instance.vnode
 
     initProps(instance, props);
+    initSlots(instance, children);
 
     instance.proxy = new Proxy(instance, publicInstanceProxy)
 
@@ -70,5 +82,26 @@ export function setupComponent(instance) {
         instance.data = reactive(data.call(instance.proxy));
     }
 
-    instance.render = type.render;
+    let {setup} = type;
+    if (setup) {
+        const setupContext = {
+            emit: (event, ...args) => {
+                const eventName = `on${event[0].toUpperCase()}${event.slice(1)}`;
+                const handler = instance.vnode.props[eventName];
+                handler && handler(...args);
+            },
+            attrs: instance.attrs,
+            slots: instance.slots,
+        }
+        const setupResult = setup(instance.props, setupContext);
+
+        if (isFunction(setupResult)) {
+            instance.render = setupResult;
+        } else if (isObject(setupResult)) {
+            instance.setupState = setupResult;
+        }
+    }
+    if (!instance.render) {
+        instance.render = type.render;
+    }
 }
